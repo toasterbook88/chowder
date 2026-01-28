@@ -30,7 +30,7 @@ fi
 # Build project if needed
 if [ ! -d "dist" ] || [ ! -f "dist/entry.js" ]; then
     echo "Building Clawdbot..."
-    nix-shell --pure -I nixpkgs=https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz -p nodejs_22 pnpm --run "export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt && pnpm build"
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt nix-shell --pure -I nixpkgs=https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz -p nodejs_22 pnpm --run "export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt && pnpm build"
 fi
 
 echo "✅ Setup complete! Run 'bash scripts/start' to launch."

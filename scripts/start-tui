@@ -24,12 +24,13 @@ sleep 2
 
 if command -v nix-shell >/dev/null 2>&1; then
     # Use nix-shell
-    exec nix-shell --pure \
-      -I nixpkgs=https://channels.nixos.org/nixos-24.05/nixexprs.tar.xz \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt exec nix-shell --pure \
+      -I nixpkgs=https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz \
       -p nodejs_22 pnpm \
       --run "
         cd '$REPO_DIR'
         export OLLAMA_API_KEY='ollama-local'
+        export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
         echo '🦞 TUI starting with Node \$(node -v)...'
         pnpm clawdbot tui
       "
