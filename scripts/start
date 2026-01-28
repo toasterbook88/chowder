@@ -91,6 +91,7 @@ exec nix-shell --pure \
   --run "
     cd '$REPO_DIR'
     export OLLAMA_API_KEY='ollama-local'
+    export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
     echo '🦞 Gateway starting with Node \$(node -v)...'
 
