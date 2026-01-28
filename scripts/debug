@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Debug script to check environment and processes
+
+echo "🦞 Clawdbot Environment Debug"
+echo "============================="
+
+echo "Current directory: $(pwd)"
+echo "User: $(whoami)"
+echo "Node version: $(node --version 2>/dev/null || echo 'Node not found')"
+echo "Nix available: $(command -v nix >/dev/null && echo 'Yes' || echo 'No')"
+echo "Nix-shell available: $(command -v nix-shell >/dev/null && echo 'Yes' || echo 'No')"
+
+echo ""
+echo "Running processes:"
+ps aux | grep -E "(clawdbot|ollama|node.*gateway)" | grep -v grep || echo "No relevant processes found"
+
+echo ""
+echo "Lock files:"
+ls -la ~/.clawdbot/gateway.lock 2>/dev/null || echo "No gateway lock file"
+ls -la /tmp/clawdbot/gateway.lock 2>/dev/null || echo "No tmp lock file"
+
+echo ""
+echo "Port usage:"
+netstat -tlnp 2>/dev/null | grep -E "(18789|11434)" || echo "Ports 18789 and 11434 not in use"
+
+echo ""
+echo "Testing nix develop:"
+if command -v nix >/dev/null 2>&1 && [ -f "flake.nix" ]; then
+    echo "Running nix develop --command 'node --version':"
+    nix develop --command 'node --version' 2>&1 || echo "nix develop failed"
+else
+    echo "nix develop not available"
+fi
+
+echo ""
+echo "Testing nix-shell (what scripts use):"
+if command -v nix-shell >/dev/null 2>&1; then
+    echo "Running nix-shell --pure -p nodejs_22 --run 'node --version':"
+    nix-shell --pure -I nixpkgs=https://channels.nixos.org/nixos-24.05/nixexprs.tar.xz -p nodejs_22 --run 'node --version' 2>&1 || echo "nix-shell failed"
+    echo "Running nix-shell --pure -p nodejs_22 pnpm ollama --run 'echo Node: \$(node --version), PNPM: \$(pnpm --version), Ollama: \$(ollama --version 2>/dev/null || echo Ollama available)':"
+    nix-shell --pure -I nixpkgs=https://channels.nixos.org/nixos-24.05/nixexprs.tar.xz -p nodejs_22 pnpm ollama --run 'echo "Node: $(node --version), PNPM: $(pnpm --version), Ollama: $(ollama --version 2>/dev/null || echo Ollama available)"' 2>&1 || echo "Full nix-shell test failed"
+else
+    echo "nix-shell not available"
+fi

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Auto-detects if running in proper nix-shell; if not, re-execs itself inside one.
+# Usage: bash run "clawdbot models list" or run "pnpm build"
+
+# Re-execute in nix-shell if not already inside one
+if [ -z "$IN_NIX_SHELL" ]; then
+  exec nix-shell --pure \
+    -I nixpkgs=https://channels.nixos.org/nixos-24.05/nixexprs.tar.xz \
+    -p nodejs_22 pnpm ollama \
+    --run "IN_NIX_SHELL=1 OLLAMA_API_KEY='ollama-local' bash $0 $@"
+fi
+
+# Inside nix-shell now
+cd "$(dirname "$0")/.."
+export OLLAMA_API_KEY="ollama-local"
+
+if [ $# -eq 0 ]; then
+  echo "Usage: bash run <command>"
+  echo ""
+  echo "Examples:"
+  echo "  bash run pnpm build"
+  echo "  bash run pnpm test"
+  echo "  bash run clawdbot models list"
+  echo "  bash run clawdbot config set agents.defaults.model.primary ollama/llama3.3"
+  exit 1
+fi
+
+echo "🦞 Running: $@ (Node $(node -v))"
+echo ""
+
+if [ "$1" = "pnpm" ]; then
+  shift
+  corepack pnpm "$@"
+else
+  "$@"
+fi

@@ -135,6 +135,15 @@ export async function resolveApiKeyForProvider(params: {
   agentDir?: string;
 }): Promise<ResolvedProviderAuth> {
   const { provider, cfg, profileId, preferredProfile } = params;
+
+  if (provider === "local-coder") {
+    return {
+      apiKey: "dummy-key",
+      source: "hardcoded-for-local-coder",
+      mode: "api-key",
+    };
+  }
+
   const store = params.store ?? ensureAuthProfileStore(params.agentDir);
 
   if (profileId) {

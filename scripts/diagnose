@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+# Comprehensive Clawdbot + Ollama diagnostic script
+
+echo "🦞 Clawdbot + Ollama Diagnostic"
+echo "==============================="
+
+# Check basic environment
+echo "1. Environment Check:"
+echo "   Current directory: $(pwd)"
+echo "   User: $(whoami)"
+
+# Check Nix availability
+echo ""
+echo "2. Nix Check:"
+if command -v nix >/dev/null 2>&1; then
+    echo "   ✅ Nix available: $(nix --version)"
+else
+    echo "   ❌ Nix not found"
+fi
+
+if command -v nix-shell >/dev/null 2>&1; then
+    echo "   ✅ nix-shell available"
+else
+    echo "   ❌ nix-shell not found"
+fi
+
+# Check Node in nix-shell
+echo ""
+echo "3. Node.js Check:"
+if command -v nix-shell >/dev/null 2>&1; then
+    NODE_VERSION=$(nix-shell --pure -I nixpkgs=https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz -p nodejs_22 --run 'node --version' 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        echo "   ✅ Node.js in nix-shell: $NODE_VERSION"
+        if [[ "$NODE_VERSION" =~ v([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+            major=${BASH_REMATCH[1]}
+            minor=${BASH_REMATCH[2]}
+            if [ $major -gt 22 ] || ([ $major -eq 22 ] && [ $minor -ge 12 ]); then
+                echo "   ✅ Node version meets requirement (>=22.12.0)"
+            else
+                echo "   ⚠️  Node version $NODE_VERSION is below requirement (>=22.12.0)"
+            fi
+        fi
+    else
+        echo "   ❌ Failed to get Node version from nix-shell"
+    fi
+else
+    echo "   ❌ Cannot check Node version"
+fi
+
+# Check Ollama
+echo ""
+echo "4. Ollama Check:"
+if pgrep -f "ollama serve" >/dev/null 2>&1; then
+    echo "   ✅ Ollama process running"
+else
+    echo "   ❌ Ollama process not running"
+    echo "      Start with: ollama serve"
+fi
+
+if curl -s --max-time 5 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+    echo "   ✅ Ollama API responding"
+
+    MODEL_COUNT=$(curl -s http://127.0.0.1:11434/api/tags 2>/dev/null | jq -r '.models | length' 2>/dev/null || echo "0")
+    echo "   📊 Available models: $MODEL_COUNT"
+
+    if [ "$MODEL_COUNT" -gt 0 ]; then
+        echo "   Models:"
+        curl -s http://127.0.0.1:11434/api/tags 2>/dev/null | jq -r '.models[].name' 2>/dev/null | sed 's/^/      - /' || echo "      Could not list models"
+    fi
+
+    # Check for llama3.3 specifically
+    if curl -s http://127.0.0.1:11434/api/show -d '{"name":"llama3.3"}' 2>/dev/null | jq -e '.name' >/dev/null 2>&1; then
+        echo "   ✅ llama3.3 model available"
+    else
+        echo "   ❌ llama3.3 model not found"
+        echo "      Pull with: ollama pull llama3.3"
+    fi
+else
+    echo "   ❌ Ollama API not responding"
+    echo "      Check if Ollama is running on port 11434"
+fi
+
+# Check Clawdbot build
+echo ""
+echo "5. Clawdbot Build Check:"
+if [ -d "dist" ] && [ -f "dist/entry.js" ]; then
+    echo "   ✅ Build exists (dist/ directory)"
+    BUILD_INFO=$(cat dist/build-info.json 2>/dev/null | jq -r '.version' 2>/dev/null || echo "unknown")
+    echo "   📦 Build version: $BUILD_INFO"
+else
+    echo "   ❌ Build missing - run: pnpm build"
+fi
+
+# Check for running Clawdbot processes
+echo ""
+echo "6. Running Processes:"
+CLAWDBOT_PROCS=$(ps aux | grep -E "(clawdbot|node.*gateway)" | grep -v grep | wc -l)
+if [ "$CLAWDBOT_PROCS" -gt 0 ]; then
+    echo "   📊 Clawdbot processes running: $CLAWDBOT_PROCS"
+    ps aux | grep -E "(clawdbot|node.*gateway)" | grep -v grep | head -3
+else
+    echo "   ℹ️  No Clawdbot processes running"
+fi
+
+# Port check
+echo ""
+echo "7. Port Usage:"
+if command -v ss >/dev/null 2>&1; then
+    PORT_18789=$(ss -tlnp | grep :18789 || echo "")
+    PORT_11434=$(ss -tlnp | grep :11434 || echo "")
+elif command -v netstat >/dev/null 2>&1; then
+    PORT_18789=$(netstat -tlnp 2>/dev/null | grep :18789 || echo "")
+    PORT_11434=$(netstat -tlnp 2>/dev/null | grep :11434 || echo "")
+else
+    PORT_18789=""
+    PORT_11434=""
+fi
+
+if [ -n "$PORT_18789" ]; then
+    echo "   ✅ Port 18789 (gateway) in use"
+else
+    echo "   ℹ️  Port 18789 (gateway) free"
+fi
+
+if [ -n "$PORT_11434" ]; then
+    echo "   ✅ Port 11434 (Ollama) in use"
+else
+    echo "   ℹ️  Port 11434 (Ollama) free"
+fi
+
+# Summary
+echo ""
+echo "🎯 Summary:"
+ISSUES=0
+
+if ! command -v nix-shell >/dev/null 2>&1; then
+    echo "   ❌ Nix not available"
+    ((ISSUES++))
+fi
+
+if ! pgrep -f "ollama serve" >/dev/null 2>&1; then
+    echo "   ❌ Ollama not running"
+    ((ISSUES++))
+fi
+
+if ! curl -s --max-time 5 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+    echo "   ❌ Ollama API not responding"
+    ((ISSUES++))
+fi
+
+if [ ! -d "dist" ] || [ ! -f "dist/entry.js" ]; then
+    echo "   ❌ Clawdbot not built"
+    ((ISSUES++))
+fi
+
+if [ $ISSUES -eq 0 ]; then
+    echo "   ✅ All systems go! Try: bash scripts/start"
+else
+    echo "   ⚠️  $ISSUES issues found - fix before running"
+fi

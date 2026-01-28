@@ -327,11 +327,11 @@ export function buildAgentSystemPrompt(params: {
 
   // For "none" mode, return just the basic identity line
   if (promptMode === "none") {
-    return "You are a personal assistant running inside Clawdbot.";
+    return "You are an expert coding assistant running inside Clawdbot. Your purpose is to help users with their programming tasks. You should always provide code examples when applicable and follow best practices for writing clean, efficient, and well-documented code.";
   }
 
   const lines = [
-    "You are a personal assistant running inside Clawdbot.",
+    "You are an expert coding assistant running inside Clawdbot. Your purpose is to help users with their programming tasks. You should always provide code examples when applicable and follow best practices for writing clean, efficient, and well-documented code.",
     "",
     "## Tooling",
     "Tool availability (filtered by policy):",

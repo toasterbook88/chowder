@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Force kill all Clawdbot and Ollama processes
+
+echo "🦞 Force Killing All Processes"
+echo "=============================="
+
+# SAFETY CHECK: Never delete Ollama data
+if [ -d ~/.ollama ]; then
+    echo "🔒 SAFETY: Found ~/.ollama/ directory - models are safe"
+    OLLAMA_SIZE=$(du -sh ~/.ollama 2>/dev/null | cut -f1)
+    echo "🔒 SAFETY: Ollama data size: $OLLAMA_SIZE"
+fi
+
+echo "⚠️  This script ONLY kills processes - it NEVER deletes Ollama models"
+
+# Find and kill all related processes (but preserve Ollama to keep downloaded models)
+echo "Finding processes..."
+CLAWDBOT_PIDS=$(ps aux | grep -E "(clawdbot)" | grep -v grep | awk '{print $2}' || true)
+NODE_GATEWAY_PIDS=$(ps aux | grep "run-node.mjs.*gateway" | grep -v grep | awk '{print $2}' || true)
+
+if [ -n "$CLAWDBOT_PIDS" ] || [ -n "$NODE_GATEWAY_PIDS" ]; then
+    echo "Found processes (preserving Ollama to keep downloaded models):"
+    ps aux | grep -E "(clawdbot|run-node.mjs.*gateway)" | grep -v grep
+
+    echo ""
+    echo "Killing Clawdbot processes with SIGTERM..."
+    for pid in $CLAWDBOT_PIDS $NODE_GATEWAY_PIDS; do
+        kill -15 $pid 2>/dev/null || true
+        sudo kill -15 $pid 2>/dev/null || true
+    done
+    sleep 3
+
+    echo "Killing Clawdbot processes with SIGKILL..."
+    for pid in $CLAWDBOT_PIDS $NODE_GATEWAY_PIDS; do
+        kill -9 $pid 2>/dev/null || true
+        sudo kill -9 $pid 2>/dev/null || true
+    done
+    sleep 2
+
+    echo "Checking if Clawdbot processes are gone..."
+    REMAINING=$(ps aux | grep -E "(clawdbot|run-node.mjs.*gateway)" | grep -v grep | wc -l)
+    if [ "$REMAINING" -eq 0 ]; then
+        echo "✅ Clawdbot processes killed successfully"
+        echo "ℹ️  Ollama preserved to keep downloaded models"
+    else
+        echo "⚠️  Some processes may still be running"
+        ps aux | grep -E "(clawdbot|run-node.mjs.*gateway)" | grep -v grep
+    fi
+else
+    echo "No Clawdbot processes found to kill"
+    echo "ℹ️  Ollama preserved to keep downloaded models"
+fi
+
+# Clean up lock files
+echo ""
+echo "Cleaning up lock files..."
+rm -f ~/.clawdbot/gateway.lock || true
+rm -f /tmp/clawdbot/gateway.lock || true
+echo "✅ Lock files cleaned"
+
+echo ""
+echo "🔒 SAFETY: Ollama models in ~/.ollama/ are NEVER touched by this script"
+echo "🔒 SAFETY: Only Clawdbot processes and lock files are cleaned"

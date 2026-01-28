@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Auto-setup script that ensures everything is ready
+
+set -e
+
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_DIR"
+
+echo "🦞 Clawdbot Auto-Setup"
+echo "======================"
+
+# Check prerequisites
+echo "Checking prerequisites..."
+command -v nix-shell >/dev/null || { echo "❌ Nix not found"; exit 1; }
+
+# Ensure Ollama is running and has models
+echo "Ensuring Ollama setup..."
+if ! pgrep -f "ollama serve" >/dev/null; then
+    echo "Starting Ollama..."
+    ollama serve &
+    sleep 3
+fi
+
+# Check if llama3.3 is available, pull if not
+if ! ollama list | grep -q "llama3.3"; then
+    echo "Pulling llama3.3 model..."
+    ollama pull llama3.3
+fi
+
+# Build project if needed
+if [ ! -d "dist" ] || [ ! -f "dist/entry.js" ]; then
+    echo "Building Clawdbot..."
+    nix-shell --pure -I nixpkgs=https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz -p nodejs_22 pnpm --run "pnpm build"
+fi
+
+echo "✅ Setup complete! Run 'bash scripts/start' to launch."

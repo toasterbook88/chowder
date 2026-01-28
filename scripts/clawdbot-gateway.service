@@ -1,0 +1,16 @@
+[Unit]
+Description=Clawdbot Gateway Service
+After=network.target ollama.service
+Requires=ollama.service
+
+[Service]
+Type=simple
+User=%i
+Environment=OLLAMA_API_KEY=ollama-local
+WorkingDirectory=/home/%i/chowder
+ExecStart=/usr/bin/env bash /home/%i/chowder/scripts/start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

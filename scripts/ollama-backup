@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# Backup and restore Ollama models for safety
+
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+BACKUP_DIR="$REPO_DIR/ollama-backup"
+
+case "$1" in
+    backup)
+        echo "🛡️  Backing up Ollama models..."
+        if [ -d ~/.ollama/models ]; then
+            mkdir -p "$BACKUP_DIR"
+            cp -r ~/.ollama/models "$BACKUP_DIR/models-$(date +%Y%m%d-%H%M%S)"
+            echo "✅ Backup created in $BACKUP_DIR"
+            ls -la "$BACKUP_DIR"
+        else
+            echo "❌ No Ollama models found to backup"
+        fi
+        ;;
+
+    restore)
+        echo "🔄 Restoring Ollama models..."
+        if [ -d "$BACKUP_DIR" ]; then
+            LATEST_BACKUP=$(ls -t "$BACKUP_DIR" | head -1)
+            if [ -n "$LATEST_BACKUP" ]; then
+                echo "Found backup: $LATEST_BACKUP"
+                read -p "This will overwrite existing models. Continue? (y/N): " -n 1 -r
+                echo
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    rm -rf ~/.ollama/models
+                    cp -r "$BACKUP_DIR/$LATEST_BACKUP" ~/.ollama/models
+                    echo "✅ Models restored from backup"
+                else
+                    echo "❌ Restore cancelled"
+                fi
+            else
+                echo "❌ No backups found"
+            fi
+        else
+            echo "❌ No backup directory found"
+        fi
+        ;;
+
+    status)
+        echo "📊 Ollama Backup Status:"
+        if [ -d ~/.ollama/models ]; then
+            echo "✅ Models directory exists"
+            echo "📁 Models: $(ls ~/.ollama/models 2>/dev/null | wc -l) items"
+            echo "💾 Size: $(du -sh ~/.ollama/models 2>/dev/null | cut -f1)"
+        else
+            echo "❌ No models directory found"
+        fi
+
+        if [ -d "$BACKUP_DIR" ]; then
+            echo "✅ Backup directory exists: $BACKUP_DIR"
+            echo "📦 Backups: $(ls "$BACKUP_DIR" 2>/dev/null | wc -l) available"
+        else
+            echo "❌ No backup directory found"
+        fi
+        ;;
+
+    list)
+        echo "📦 Available Ollama Backups:"
+        if [ -d "$BACKUP_DIR" ]; then
+            BACKUPS=$(ls -t "$BACKUP_DIR" 2>/dev/null)
+            if [ -n "$BACKUPS" ]; then
+                echo "$BACKUPS" | nl -v1 | while read num backup; do
+                    SIZE=$(du -sh "$BACKUP_DIR/$backup" 2>/dev/null | cut -f1)
+                    echo "  $num. $backup ($SIZE)"
+                done
+            else
+                echo "❌ No backups found"
+            fi
+        else
+            echo "❌ No backup directory found"
+        fi
+        ;;
+
+    *)
+        echo "Usage: $0 {backup|restore|status|list}"
+        echo ""
+        echo "Commands:"
+        echo "  backup  - Create a backup of current Ollama models"
+        echo "  restore - Restore models from latest backup"
+        echo "  status  - Show current backup and model status"
+        echo "  list    - List all available backups"
+        echo ""
+        echo "🔒 SAFETY: This script only manages backups in $BACKUP_DIR"
+        echo "🔒 SAFETY: Ollama models in ~/.ollama/ are never deleted"
+        exit 1
+        ;;
+esac

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Auto-detects if running in proper nix-shell; if not, re-execs itself inside one.
+# Usage: bash tui or just ./tui from ~/chowder/scripts
+
+# Re-execute in nix-shell if not already inside one
+if [ -z "$IN_NIX_SHELL" ]; then
+  exec nix-shell --pure \
+    -I nixpkgs=https://channels.nixos.org/nixos-24.05/nixexprs.tar.xz \
+    -p nodejs_22 pnpm ollama \
+    --run "IN_NIX_SHELL=1 OLLAMA_API_KEY='ollama-local' bash $0 $@"
+fi
+
+# Inside nix-shell now
+cd "$(dirname "$0")/.."
+export OLLAMA_API_KEY="ollama-local"
+
+echo "🦞 Starting Clawdbot TUI (Node $(node -v))..."
+echo ""
+
+pnpm clawdbot tui

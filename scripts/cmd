@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Run any command with full Clawdbot + Ollama setup
+
+set -e
+
+# Find the repo directory
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_DIR"
+
+# Check if nix-shell is available
+if ! command -v nix-shell >/dev/null 2>&1; then
+    echo "❌ Error: nix-shell not found. Please ensure Nix is installed."
+    exit 1
+fi
+
+if [ $# -eq 0 ]; then
+  echo "Usage: bash scripts/cmd <command>"
+  echo ""
+  echo "Examples:"
+  echo "  bash scripts/cmd pnpm build"
+  echo "  bash scripts/cmd clawdbot models list"
+  echo "  bash scripts/cmd clawdbot config set agents.defaults.model.primary ollama/llama3.3"
+  exit 1
+fi
+
+if command -v nix-shell >/dev/null 2>&1; then
+    # Use nix-shell
+    exec nix-shell --pure \
+      -I nixpkgs=https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz \
+      -p nodejs_22 pnpm \
+      --run "
+        cd '$REPO_DIR'
+        export OLLAMA_API_KEY='ollama-local'
+        echo '🦞 Running: \$@'
+        \$@
+      "
+else
+    echo "❌ Error: nix-shell not found."
+    exit 1
+fi

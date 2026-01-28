@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Start TUI with full setup
+
+set -e
+
+# Find the repo directory
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_DIR"
+
+echo "🦞 Starting Clawdbot TUI..."
+
+# Check if nix-shell is available
+if ! command -v nix-shell >/dev/null 2>&1; then
+    echo "❌ Error: nix-shell not found. Please ensure Nix is installed."
+    echo "   On NixOS: nix-shell should be available by default"
+    echo "   On other systems: Install Nix from https://nixos.org/download"
+    exit 1
+fi
+
+# Kill any existing processes that might conflict
+pkill -9 -f "clawdbot tui" || true
+sudo pkill -9 -f "clawdbot tui" || true
+sleep 2
+
+if command -v nix-shell >/dev/null 2>&1; then
+    # Use nix-shell
+    exec nix-shell --pure \
+      -I nixpkgs=https://channels.nixos.org/nixos-24.05/nixexprs.tar.xz \
+      -p nodejs_22 pnpm \
+      --run "
+        cd '$REPO_DIR'
+        export OLLAMA_API_KEY='ollama-local'
+        echo '🦞 TUI starting with Node \$(node -v)...'
+        pnpm clawdbot tui
+      "
+else
+    echo "❌ Error: nix-shell not found."
+    exit 1
+fi

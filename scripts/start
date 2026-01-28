@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# Complete Clawdbot + Ollama setup script with enhanced error handling
+
+set -e
+
+# Load configuration
+if [ -f "../config.env" ]; then
+    source ../config.env
+fi
+
+# Find the repo directory
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_DIR"
+
+echo "🦞 Clawdbot + Ollama Setup"
+echo "=========================="
+
+# SAFETY CHECK: Verify Ollama models are safe
+if [ -d ~/.ollama ]; then
+    echo "🔒 SAFETY: Found ~/.ollama/ directory - models are safe"
+    OLLAMA_SIZE=$(du -sh ~/.ollama 2>/dev/null | cut -f1)
+    echo "🔒 SAFETY: Ollama data size: $OLLAMA_SIZE"
+fi
+
+echo "⚠️  This script NEVER deletes Ollama models or data"
+
+# Check if nix-shell is available
+if ! command -v nix-shell >/dev/null 2>&1; then
+    echo "❌ Error: nix-shell not found. Please ensure Nix is installed."
+    echo "   On NixOS: nix-shell should be available by default"
+    echo "   On other systems: Install Nix from https://nixos.org/download"
+    exit 1
+fi
+
+# Pre-flight checks
+echo "Running pre-flight checks..."
+
+# Check if project is built
+if [ ! -d "dist" ] || [ ! -f "dist/entry.js" ]; then
+    echo "⚠️  Project not built. Building..."
+    nix-shell --pure \
+      -I nixpkgs=https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz \
+      -p nodejs_22 pnpm \
+      --run "pnpm build" || {
+        echo "❌ Build failed"
+        exit 1
+    }
+fi
+
+# Ensure Ollama is running
+if ! pgrep -f "ollama serve" >/dev/null; then
+    echo "⚠️  Ollama not running. Starting..."
+    ollama serve &
+    OLLAMA_PID=$!
+    sleep 3
+
+    # Verify Ollama started
+    if ! curl -s --max-time 5 http://127.0.0.1:11434/api/tags >/dev/null; then
+        echo "❌ Failed to start Ollama"
+        exit 1
+    fi
+fi
+
+# Ensure llama3.3 model is available
+if ! curl -s http://127.0.0.1:11434/api/show -d '{"name":"llama3.3"}' | jq -e '.name' >/dev/null 2>&1; then
+    echo "⚠️  llama3.3 model not found. Pulling..."
+    if ! ollama pull llama3.3; then
+        echo "❌ Failed to pull llama3.3 model"
+        exit 1
+    fi
+fi
+
+# Kill any existing Clawdbot processes (but preserve Ollama)
+echo "Stopping existing Clawdbot processes..."
+pkill -f "clawdbot gateway" || true
+pkill -f "node.*run-node.mjs.*gateway" || true
+sleep 2
+
+# Clean up any lock files
+rm -f ~/.clawdbot/gateway.lock || true
+rm -f /tmp/clawdbot/gateway.lock || true
+
+echo "🔒 SAFETY: Ollama models in ~/.ollama/ are preserved and never deleted"
+echo "🔒 SAFETY: This script only manages Clawdbot processes and lock files"
+
+# Enter nix-shell and run gateway with error handling
+echo "Starting Clawdbot gateway..."
+exec nix-shell --pure \
+  -I nixpkgs=https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz \
+  -p nodejs_22 pnpm \
+  --run "
+    cd '$REPO_DIR'
+    export OLLAMA_API_KEY='ollama-local'
+
+    echo '🦞 Gateway starting with Node \$(node -v)...'
+
+    # Start gateway with proper error handling
+    if pnpm clawdbot gateway run --bind loopback --port 18789 --force; then
+        echo '✅ Gateway started successfully'
+    else
+        echo '❌ Gateway failed to start'
+        exit 1
+    fi
+  "

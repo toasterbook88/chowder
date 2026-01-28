@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Health check script for monitoring Clawdbot + Ollama
+
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_DIR"
+
+echo "🦞 Health Check - $(date)"
+echo "========================"
+
+ISSUES=0
+
+# Check Ollama
+echo "Ollama Status:"
+if pgrep -f "ollama serve" >/dev/null; then
+    echo "  ✅ Process running"
+else
+    echo "  ❌ Process not running"
+    ((ISSUES++))
+fi
+
+if curl -s --max-time 2 http://127.0.0.1:11434/api/tags >/dev/null; then
+    echo "  ✅ API responding"
+    MODEL_COUNT=$(curl -s http://127.0.0.1:11434/api/tags | jq -r '.models | length' 2>/dev/null || echo "0")
+    echo "  📊 Models available: $MODEL_COUNT"
+else
+    echo "  ❌ API not responding"
+    ((ISSUES++))
+fi
+
+# Check Clawdbot Gateway
+echo ""
+echo "Clawdbot Gateway Status:"
+if pgrep -f "clawdbot gateway" >/dev/null; then
+    echo "  ✅ Process running"
+else
+    echo "  ❌ Process not running"
+    ((ISSUES++))
+fi
+
+if curl -s --max-time 2 http://127.0.0.1:18789/ >/dev/null; then
+    echo "  ✅ Web interface responding"
+else
+    echo "  ❌ Web interface not responding"
+    ((ISSUES++))
+fi
+
+# Check ports
+echo ""
+echo "Port Status:"
+if lsof -i :18789 >/dev/null 2>&1; then
+    echo "  ✅ Port 18789 (gateway) in use"
+else
+    echo "  ❌ Port 18789 (gateway) free"
+    ((ISSUES++))
+fi
+
+if lsof -i :11434 >/dev/null 2>&1; then
+    echo "  ✅ Port 11434 (Ollama) in use"
+else
+    echo "  ❌ Port 11434 (Ollama) free"
+    ((ISSUES++))
+fi
+
+# Summary
+echo ""
+if [ $ISSUES -eq 0 ]; then
+    echo "🎉 All systems healthy!"
+else
+    echo "⚠️  $ISSUES issues detected"
+    echo ""
+    echo "Quick fixes:"
+    [ $ISSUES -gt 0 ] && echo "  Run: bash scripts/setup    # Auto-setup everything"
+    [ $ISSUES -gt 0 ] && echo "  Run: bash scripts/start    # Start services"
+fi

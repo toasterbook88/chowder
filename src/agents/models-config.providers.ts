@@ -75,6 +75,17 @@ const OLLAMA_DEFAULT_COST = {
   cacheWrite: 0,
 };
 
+const LOCAL_CODER_BASE_URL = "http://localhost:8000";
+const LOCAL_CODER_DEFAULT_MODEL_ID = "Qwen/Qwen3-Coder-30B-A3B-Instruct";
+const LOCAL_CODER_DEFAULT_CONTEXT_WINDOW = 32768;
+const LOCAL_CODER_DEFAULT_MAX_TOKENS = 8192;
+const LOCAL_CODER_DEFAULT_COST = {
+  input: 0,
+  output: 0,
+  cacheRead: 0,
+  cacheWrite: 0,
+};
+
 interface OllamaModel {
   name: string;
   modified_at: string;
@@ -109,7 +120,8 @@ async function discoverOllamaModels(): Promise<ModelDefinitionConfig[]> {
       return [];
     }
     return data.models.map((model) => {
-      const modelId = model.name;
+      // Strip :latest suffix to get clean model ID
+      const modelId = model.name.replace(/:latest$/, "");
       const isReasoning =
         modelId.toLowerCase().includes("r1") || modelId.toLowerCase().includes("reasoning");
       return {
@@ -359,6 +371,24 @@ async function buildOllamaProvider(): Promise<ProviderConfig> {
   };
 }
 
+function buildLocalCoderProvider(): ProviderConfig {
+  return {
+    baseUrl: LOCAL_CODER_BASE_URL,
+    api: "openai-completions",
+    models: [
+      {
+        id: LOCAL_CODER_DEFAULT_MODEL_ID,
+        name: "Local Coder",
+        reasoning: true,
+        input: ["text"],
+        cost: LOCAL_CODER_DEFAULT_COST,
+        contextWindow: LOCAL_CODER_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: LOCAL_CODER_DEFAULT_MAX_TOKENS,
+      },
+    ],
+  };
+}
+
 export async function resolveImplicitProviders(params: {
   agentDir: string;
 }): Promise<ModelsConfig["providers"]> {
@@ -417,6 +447,8 @@ export async function resolveImplicitProviders(params: {
   if (ollamaKey) {
     providers.ollama = { ...(await buildOllamaProvider()), apiKey: ollamaKey };
   }
+
+  providers["local-coder"] = { ...buildLocalCoderProvider(), apiKey: "local-coder" };
 
   return providers;
 }

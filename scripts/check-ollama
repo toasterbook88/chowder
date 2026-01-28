@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Check Ollama status and connectivity
+
+echo "🦞 Ollama Status Check"
+echo "======================"
+
+# Check if Ollama is running
+if pgrep -f "ollama serve" >/dev/null 2>&1; then
+    echo "✅ Ollama process is running"
+else
+    echo "❌ Ollama process not found"
+    echo "   Start it with: ollama serve"
+    exit 1
+fi
+
+# Check if API is responding
+echo ""
+echo "Testing Ollama API connectivity..."
+if curl -s http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+    echo "✅ Ollama API is responding"
+else
+    echo "❌ Ollama API not responding"
+    echo "   Check if Ollama is running on port 11434"
+    exit 1
+fi
+
+# Get available models
+echo ""
+echo "Available models:"
+curl -s http://127.0.0.1:11434/api/tags | jq -r '.models[].name' 2>/dev/null || echo "   Could not parse model list"
+
+# Test llama3.3 specifically
+echo ""
+echo "Testing llama3.3 model..."
+if curl -s http://127.0.0.1:11434/api/show -d '{"name":"llama3.3"}' | jq -e '.name' >/dev/null 2>&1; then
+    echo "✅ llama3.3 model is available"
+else
+    echo "❌ llama3.3 model not found"
+    echo "   Pull it with: ollama pull llama3.3"
+fi
+
+echo ""
+echo "🎯 Ollama setup looks good for Clawdbot!"
