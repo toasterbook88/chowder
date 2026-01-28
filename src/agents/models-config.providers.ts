@@ -440,12 +440,14 @@ export async function resolveImplicitProviders(params: {
     };
   }
 
-  // Ollama provider - only add if explicitly configured
-  const ollamaKey =
-    resolveEnvApiKeyVarName("ollama") ??
-    resolveApiKeyFromProfiles({ provider: "ollama", store: authStore });
-  if (ollamaKey) {
-    providers.ollama = { ...(await buildOllamaProvider()), apiKey: ollamaKey };
+  // Ollama provider - always available for local models
+  try {
+    const ollamaModels = await discoverOllamaModels();
+    if (ollamaModels.length > 0) {
+      providers.ollama = { ...(await buildOllamaProvider()), apiKey: "ollama-local" };
+    }
+  } catch (error) {
+    console.warn("Ollama not available:", error);
   }
 
   providers["local-coder"] = { ...buildLocalCoderProvider(), apiKey: "local-coder" };
