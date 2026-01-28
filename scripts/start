@@ -85,13 +85,14 @@ echo "🔒 SAFETY: This script only manages Clawdbot processes and lock files"
 
 # Enter nix-shell and run gateway with error handling
 echo "Starting Clawdbot gateway..."
-SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt exec nix-shell --pure \
+SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt NODE_TLS_REJECT_UNAUTHORIZED=0 exec nix-shell --pure \
   -I nixpkgs=https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz \
   -p nodejs_22 pnpm \
   --run "
     cd '$REPO_DIR'
     export OLLAMA_API_KEY='ollama-local'
     export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+    export NODE_TLS_REJECT_UNAUTHORIZED=0
 
     echo '🦞 Gateway starting with Node \$(node -v)...'
 
