@@ -1,0 +1,42 @@
+{
+  "originHash" : "fff23f57e824326c54349b812270a007ce94f732ddcd31d0476a012cc435ce0d",
+  "pins" : [
+    {
+      "identity" : "elevenlabskit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/steipete/ElevenLabsKit",
+      "state" : {
+        "revision" : "7e3c948d8340abe3977014f3de020edf221e9269",
+        "version" : "0.1.0"
+      }
+    },
+    {
+      "identity" : "swift-concurrency-extras",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/swift-concurrency-extras",
+      "state" : {
+        "revision" : "5a3825302b1a0d744183200915a47b508c828e6f",
+        "version" : "1.3.2"
+      }
+    },
+    {
+      "identity" : "swiftui-math",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/gonzalezreal/swiftui-math",
+      "state" : {
+        "revision" : "0b5c2cfaaec8d6193db206f675048eeb5ce95f71",
+        "version" : "0.1.0"
+      }
+    },
+    {
+      "identity" : "textual",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/gonzalezreal/textual",
+      "state" : {
+        "revision" : "a03c1e103d88de4ea0dd8320ea1611ec0d4b29b3",
+        "version" : "0.2.0"
+      }
+    }
+  ],
+  "version" : 3
+}
